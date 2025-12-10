@@ -45,8 +45,12 @@ class JobsSync
     @max_retries = ENV.fetch('MAX_RETRIES', 3).to_i
     @retry_delay = ENV.fetch('RETRY_DELAY', 5).to_i
     
-    @logger = Logger.new('sync_jobs.log')
+    # Log to STDOUT for Railway/Docker console
+    @logger = Logger.new(STDOUT)
     @logger.level = Logger::INFO
+    @logger.formatter = proc do |severity, datetime, progname, msg|
+      "#{msg}\n"
+    end
     
     @stats = {
       total_jobs: 0,
