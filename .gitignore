@@ -2,7 +2,6 @@
 *.log
 *.csv
 reports/
-Gemfile.lock
 .bundle/
 vendor/bundle/
 
