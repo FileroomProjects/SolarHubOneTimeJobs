@@ -2,7 +2,14 @@
 
 # Test script to verify the sync works with a single job
 require_relative 'sync_jobs'
-require 'dotenv/load'
+
+# Load .env file if it exists (for local development)
+begin
+  require 'dotenv'
+  Dotenv.load if File.exist?('.env')
+rescue LoadError
+  # dotenv not available, using environment variables directly
+end
 
 class TestJobsSync < JobsSync
   def run_test

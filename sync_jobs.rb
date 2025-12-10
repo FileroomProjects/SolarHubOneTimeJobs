@@ -4,8 +4,15 @@ require 'httparty'
 require 'json'
 require 'csv'
 require 'logger'
-require 'dotenv/load'
 require 'time'
+
+# Load .env file if it exists (for local development)
+begin
+  require 'dotenv'
+  Dotenv.load if File.exist?('.env')
+rescue LoadError
+  # dotenv not available, using environment variables directly
+end
 
 class JobsSync
   # HubSpot Pipeline Stage Mapping
