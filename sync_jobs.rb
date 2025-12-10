@@ -240,6 +240,11 @@ class JobsSync
     data[:job_status] = job_response["Status"]["Name"] rescue nil
     data[:simpro_job_id] = job_response["ID"] rescue nil
     
+    # Ensure job name has a value (HubSpot requires it)
+    if !present?(data[:job_name])
+      data[:job_name] = "Job #{data[:simpro_job_id]}"
+    end
+    
     # Map status to HubSpot pipeline stage
     data[:pipeline_stage] = PIPELINE_STAGES[data[:job_status]]
     
@@ -289,9 +294,10 @@ class JobsSync
     data[:invoiced_value] = job_response["Totals"]["InvoicedValue"] rescue nil
     data[:actual_gross_margin] = job_response["Totals"]["GrossMargin"]["Actual"] rescue nil
     
-    # Calculate invoice percentage
+    # Calculate invoice percentage  
+    # Note: HubSpot expects percentage as decimal (0.0805 = 8.05%), not whole number (8.05)
     if data[:total_amount_inc_tax].to_f > 0 && present?(data[:invoiced_value])
-      data[:invoice_percentage] = (data[:invoiced_value].to_f / data[:total_amount_inc_tax].to_f * 100).round(2)
+      data[:invoice_percentage] = (data[:invoiced_value].to_f / data[:total_amount_inc_tax].to_f).round(4)
     end
     
     # Category 5: Job Origin & Relationships
