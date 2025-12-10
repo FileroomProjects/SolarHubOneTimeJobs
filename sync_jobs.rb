@@ -163,7 +163,7 @@ class JobsSync
       # Check if job already exists in HubSpot
       existing_hubspot_id = job_data[:hubspot_job_id]
       
-      if existing_hubspot_id.present?
+      if present?(existing_hubspot_id)
         # Update existing job
         rate_limit_hubspot
         success = update_hubspot_job(existing_hubspot_id, job_data)
@@ -220,11 +220,16 @@ class JobsSync
     response.success? ? response.parsed_response : nil
   end
 
+  # Helper method to check if value is present (replaces Rails' .present?)
+  def present?(value)
+    !value.nil? && (value.is_a?(String) ? !value.strip.empty? : (value.respond_to?(:empty?) ? !value.empty? : true))
+  end
+
   def extract_job_fields(job_response)
     data = {}
     
     # Find HubSpot job ID from custom field 262
-    if job_response["CustomFields"].present?
+    if present?(job_response["CustomFields"])
       hubspot_field = job_response["CustomFields"].find { |cf| cf["CustomField"]["ID"] == 262 }
       data[:hubspot_job_id] = hubspot_field["Value"] rescue nil if hubspot_field
     end
@@ -252,21 +257,21 @@ class JobsSync
     data[:manager_id] = job_response["ProjectManager"]["ID"] rescue nil
     
     # Technician information
-    if job_response["Technicians"].present? && job_response["Technicians"].is_a?(Array) && job_response["Technicians"].any?
+    if present?(job_response["Technicians"]) && job_response["Technicians"].is_a?(Array) && job_response["Technicians"].any?
       data[:assigned_technicians] = job_response["Technicians"].map { |t| t["Name"] }.compact.join(", ") rescue nil
       data[:technician_id] = job_response["Technicians"].first["ID"] rescue nil
-    elsif job_response["Technician"].present?
+    elsif present?(job_response["Technician"])
       data[:assigned_technicians] = job_response["Technician"]["Name"] rescue nil
       data[:technician_id] = job_response["Technician"]["ID"] rescue nil
     end
     
     # Customer and site information
-    if job_response["CustomerContact"].present?
+    if present?(job_response["CustomerContact"])
       data[:primary_contact_name] = "#{job_response['CustomerContact']['GivenName']} #{job_response['CustomerContact']['FamilyName']}".strip rescue nil
       data[:primary_customer_contact_id] = job_response["CustomerContact"]["ID"] rescue nil
     end
     
-    if job_response["SiteContact"].present?
+    if present?(job_response["SiteContact"])
       data[:site_contact_name] = "#{job_response['SiteContact']['GivenName']} #{job_response['SiteContact']['FamilyName']}".strip rescue nil
     end
     
@@ -285,7 +290,7 @@ class JobsSync
     data[:actual_gross_margin] = job_response["Totals"]["GrossMargin"]["Actual"] rescue nil
     
     # Calculate invoice percentage
-    if data[:total_amount_inc_tax].to_f > 0 && data[:invoiced_value].present?
+    if data[:total_amount_inc_tax].to_f > 0 && present?(data[:invoiced_value])
       data[:invoice_percentage] = (data[:invoiced_value].to_f / data[:total_amount_inc_tax].to_f * 100).round(2)
     end
     
@@ -294,7 +299,7 @@ class JobsSync
     data[:date_converted_quote] = job_response["ConvertedFromQuote"]["DateConverted"] rescue nil
     
     # Category 6: Custom Fields
-    if job_response["CustomFields"].present?
+    if present?(job_response["CustomFields"])
       find_cf = ->(id) { job_response["CustomFields"].find { |cf| cf["CustomField"]["ID"] == id } }
       
       region_field = find_cf.call(111)
@@ -378,72 +383,72 @@ class JobsSync
     properties = {}
     
     # Basic Information
-    properties["jobs"] = job_data[:job_name] if job_data[:job_name].present?
-    properties["stage"] = job_data[:stage] if job_data[:stage].present?
-    properties["job_status"] = job_data[:job_status] if job_data[:job_status].present?
-    properties["status"] = job_data[:job_status] if job_data[:job_status].present?
-    properties["simpro_job_id"] = job_data[:simpro_job_id] if job_data[:simpro_job_id].present?
+    properties["jobs"] = job_data[:job_name] if present?(job_data[:job_name])
+    properties["stage"] = job_data[:stage] if present?(job_data[:stage])
+    properties["job_status"] = job_data[:job_status] if present?(job_data[:job_status])
+    properties["status"] = job_data[:job_status] if present?(job_data[:job_status])
+    properties["simpro_job_id"] = job_data[:simpro_job_id] if present?(job_data[:simpro_job_id])
     
     # Pipeline Stage
-    if job_data[:pipeline_stage].present?
+    if present?(job_data[:pipeline_stage])
       properties["hs_pipeline"] = @pipeline_id
       properties["hs_pipeline_stage"] = job_data[:pipeline_stage]
     end
     
     # Dates
-    properties["date_issued"] = format_date_for_hubspot(job_data[:date_issued]) if job_data[:date_issued].present?
-    properties["date_created"] = format_date_for_hubspot(job_data[:date_created]) if job_data[:date_created].present?
-    properties["completed_date"] = format_date_for_hubspot(job_data[:completed_date]) if job_data[:completed_date].present?
-    properties["completion_date"] = format_date_for_hubspot(job_data[:completion_date]) if job_data[:completion_date].present?
-    properties["last_modified_date"] = format_date_for_hubspot(job_data[:last_modified_date]) if job_data[:last_modified_date].present?
-    properties["date_converted_quote"] = format_date_for_hubspot(job_data[:date_converted_quote]) if job_data[:date_converted_quote].present?
+    properties["date_issued"] = format_date_for_hubspot(job_data[:date_issued]) if present?(job_data[:date_issued])
+    properties["date_created"] = format_date_for_hubspot(job_data[:date_created]) if present?(job_data[:date_created])
+    properties["completed_date"] = format_date_for_hubspot(job_data[:completed_date]) if present?(job_data[:completed_date])
+    properties["completion_date"] = format_date_for_hubspot(job_data[:completion_date]) if present?(job_data[:completion_date])
+    properties["last_modified_date"] = format_date_for_hubspot(job_data[:last_modified_date]) if present?(job_data[:last_modified_date])
+    properties["date_converted_quote"] = format_date_for_hubspot(job_data[:date_converted_quote]) if present?(job_data[:date_converted_quote])
     
     # People & Assignments
-    properties["salesperson"] = job_data[:salesperson] if job_data[:salesperson].present?
-    properties["sales_person_id"] = job_data[:sales_person_id].to_s if job_data[:sales_person_id].present?
-    properties["project_manager"] = job_data[:project_manager] if job_data[:project_manager].present?
-    properties["manager_id"] = job_data[:manager_id].to_s if job_data[:manager_id].present?
-    properties["assigned_technicians"] = job_data[:assigned_technicians] if job_data[:assigned_technicians].present?
-    properties["technician_id"] = job_data[:technician_id].to_s if job_data[:technician_id].present?
-    properties["primary_contact_name"] = job_data[:primary_contact_name] if job_data[:primary_contact_name].present?
-    properties["primary_customer_contact_id"] = job_data[:primary_customer_contact_id].to_s if job_data[:primary_customer_contact_id].present?
-    properties["site_contact_name"] = job_data[:site_contact_name] if job_data[:site_contact_name].present?
+    properties["salesperson"] = job_data[:salesperson] if present?(job_data[:salesperson])
+    properties["sales_person_id"] = job_data[:sales_person_id].to_s if present?(job_data[:sales_person_id])
+    properties["project_manager"] = job_data[:project_manager] if present?(job_data[:project_manager])
+    properties["manager_id"] = job_data[:manager_id].to_s if present?(job_data[:manager_id])
+    properties["assigned_technicians"] = job_data[:assigned_technicians] if present?(job_data[:assigned_technicians])
+    properties["technician_id"] = job_data[:technician_id].to_s if present?(job_data[:technician_id])
+    properties["primary_contact_name"] = job_data[:primary_contact_name] if present?(job_data[:primary_contact_name])
+    properties["primary_customer_contact_id"] = job_data[:primary_customer_contact_id].to_s if present?(job_data[:primary_customer_contact_id])
+    properties["site_contact_name"] = job_data[:site_contact_name] if present?(job_data[:site_contact_name])
     
     # Customer & Company
-    properties["simpro_customer_id"] = job_data[:simpro_customer_id].to_s if job_data[:simpro_customer_id].present?
-    properties["simpro_company_id"] = job_data[:simpro_company_id].to_s if job_data[:simpro_company_id].present?
-    properties["simpro_company_name"] = job_data[:simpro_company_name] if job_data[:simpro_company_name].present?
-    properties["simpro_customer_contract_id"] = job_data[:simpro_customer_contract_id].to_s if job_data[:simpro_customer_contract_id].present?
-    properties["site"] = job_data[:site] if job_data[:site].present?
-    properties["site_id"] = job_data[:site_id].to_s if job_data[:site_id].present?
+    properties["simpro_customer_id"] = job_data[:simpro_customer_id].to_s if present?(job_data[:simpro_customer_id])
+    properties["simpro_company_id"] = job_data[:simpro_company_id].to_s if present?(job_data[:simpro_company_id])
+    properties["simpro_company_name"] = job_data[:simpro_company_name] if present?(job_data[:simpro_company_name])
+    properties["simpro_customer_contract_id"] = job_data[:simpro_customer_contract_id].to_s if present?(job_data[:simpro_customer_contract_id])
+    properties["site"] = job_data[:site] if present?(job_data[:site])
+    properties["site_id"] = job_data[:site_id].to_s if present?(job_data[:site_id])
     
     # Financial
-    properties["actual_gross_margin"] = job_data[:actual_gross_margin].to_f if job_data[:actual_gross_margin].present?
-    properties["total_amount_inc_tax_"] = job_data[:total_amount_inc_tax].to_f if job_data[:total_amount_inc_tax].present?
-    properties["total_price_inc_tax"] = job_data[:total_price_inc_tax].to_f if job_data[:total_price_inc_tax].present?
-    properties["total_price_ex_tax"] = job_data[:total_price_ex_tax].to_f if job_data[:total_price_ex_tax].present?
-    properties["invoiced_value"] = job_data[:invoiced_value].to_f if job_data[:invoiced_value].present?
-    properties["invoice_percentage"] = job_data[:invoice_percentage].to_f if job_data[:invoice_percentage].present?
+    properties["actual_gross_margin"] = job_data[:actual_gross_margin].to_f if present?(job_data[:actual_gross_margin])
+    properties["total_amount_inc_tax_"] = job_data[:total_amount_inc_tax].to_f if present?(job_data[:total_amount_inc_tax])
+    properties["total_price_inc_tax"] = job_data[:total_price_inc_tax].to_f if present?(job_data[:total_price_inc_tax])
+    properties["total_price_ex_tax"] = job_data[:total_price_ex_tax].to_f if present?(job_data[:total_price_ex_tax])
+    properties["invoiced_value"] = job_data[:invoiced_value].to_f if present?(job_data[:invoiced_value])
+    properties["invoice_percentage"] = job_data[:invoice_percentage].to_f if present?(job_data[:invoice_percentage])
     
     # Relationships
-    properties["converted_quote_id"] = job_data[:converted_quote_id].to_s if job_data[:converted_quote_id].present?
+    properties["converted_quote_id"] = job_data[:converted_quote_id].to_s if present?(job_data[:converted_quote_id])
     
     # Custom Fields
-    properties["region"] = job_data[:region] if job_data[:region].present?
-    properties["financing"] = job_data[:financing] if job_data[:financing].present?
-    properties["custom_29_smartrquotelink"] = job_data[:custom_29_smartrquotelink] if job_data[:custom_29_smartrquotelink].present?
-    properties["installation_date"] = format_date_for_hubspot(job_data[:installation_date]) if job_data[:installation_date].present?
-    properties["grid_approval_number"] = job_data[:grid_approval_number] if job_data[:grid_approval_number].present?
-    properties["grid_approval_submitted_date"] = format_date_for_hubspot(job_data[:grid_approval_submitted_date]) if job_data[:grid_approval_submitted_date].present?
-    properties["metering_requested_date"] = format_date_for_hubspot(job_data[:metering_requested_date]) if job_data[:metering_requested_date].present?
-    properties["inspection_date"] = format_date_for_hubspot(job_data[:inspection_date]) if job_data[:inspection_date].present?
-    properties["ces_submitted_date"] = format_date_for_hubspot(job_data[:ces_submitted_date]) if job_data[:ces_submitted_date].present?
+    properties["region"] = job_data[:region] if present?(job_data[:region])
+    properties["financing"] = job_data[:financing] if present?(job_data[:financing])
+    properties["custom_29_smartrquotelink"] = job_data[:custom_29_smartrquotelink] if present?(job_data[:custom_29_smartrquotelink])
+    properties["installation_date"] = format_date_for_hubspot(job_data[:installation_date]) if present?(job_data[:installation_date])
+    properties["grid_approval_number"] = job_data[:grid_approval_number] if present?(job_data[:grid_approval_number])
+    properties["grid_approval_submitted_date"] = format_date_for_hubspot(job_data[:grid_approval_submitted_date]) if present?(job_data[:grid_approval_submitted_date])
+    properties["metering_requested_date"] = format_date_for_hubspot(job_data[:metering_requested_date]) if present?(job_data[:metering_requested_date])
+    properties["inspection_date"] = format_date_for_hubspot(job_data[:inspection_date]) if present?(job_data[:inspection_date])
+    properties["ces_submitted_date"] = format_date_for_hubspot(job_data[:ces_submitted_date]) if present?(job_data[:ces_submitted_date])
     
     properties
   end
 
   def format_date_for_hubspot(date_value)
-    return nil unless date_value.present?
+    return nil unless present?(date_value)
     
     begin
       if date_value.is_a?(Numeric)
