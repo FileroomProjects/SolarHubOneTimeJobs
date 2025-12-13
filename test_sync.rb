@@ -28,17 +28,17 @@ class TestJobsSync < JobsSync
     end
     
     puts "✅ Successfully connected to Simpro"
-    puts "   Found #{jobs.count} jobs (will process first one only)"
+    puts "   Found #{jobs.count} jobs to process"
     puts ""
     
-    # Process first job
-    job = jobs.first
-    puts "2. Testing job processing..."
-    puts "   Job ID: #{job['ID']}"
-    puts "   Job Name: #{job['Name']}"
+    # Process all fetched jobs
+    puts "2. Processing #{jobs.count} jobs..."
     puts ""
     
-    process_job(job)
+    jobs.each_with_index do |job, index|
+      puts "   [#{index + 1}/#{jobs.count}] Processing Job #{job['ID']}..."
+      process_job(job)
+    end
     
     puts ""
     puts "=" * 80

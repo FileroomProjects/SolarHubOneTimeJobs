@@ -11,7 +11,7 @@ services:
     command: ruby sync_jobs.rb
     restart: "no"  # Don't auto-restart - one-time job
 
-  # Test service - runs only 5 jobs for testing
+  # Test service - configurable number of jobs for testing
   job-sync-test:
     build: .
     container_name: solarhub-job-sync-test
@@ -19,7 +19,7 @@ services:
       - .env
     environment:
       - TEST_MODE=true
-      - MAX_JOBS=5  # Only process 5 jobs for testing
+      - MAX_JOBS=${MAX_JOBS:-5}  # Default 5 jobs, override with MAX_JOBS env var
     volumes:
       - ./logs:/app/logs
       - ./reports:/app/reports

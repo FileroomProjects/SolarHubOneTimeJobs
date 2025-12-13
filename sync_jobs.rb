@@ -164,11 +164,27 @@ class JobsSync
       existing_hubspot_id = job_data[:hubspot_job_id]
       
       if present?(existing_hubspot_id)
-        # Update existing job
+        # Try to update existing job
         rate_limit_hubspot
-        success = update_hubspot_job(existing_hubspot_id, job_data)
+        result = update_hubspot_job(existing_hubspot_id, job_data)
         
-        if success
+        if result == :not_found
+          # Job was deleted from HubSpot, create a new one
+          @logger.warn "Job #{existing_hubspot_id} not found in HubSpot (deleted). Creating new job..."
+          rate_limit_hubspot
+          hubspot_id = create_hubspot_job(job_data)
+          
+          if hubspot_id
+            @stats[:created] += 1
+            @logger.info "✅ Created replacement HubSpot job #{hubspot_id}"
+            write_report_row(simpro_job_id, job_data[:job_name], 'created', hubspot_id)
+            update_simpro_custom_field(simpro_job_id, hubspot_id)
+          else
+            @stats[:failed] += 1
+            @logger.error "❌ Failed to create replacement HubSpot job"
+            write_report_row(simpro_job_id, job_data[:job_name], 'failed', 'Create failed after 404')
+          end
+        elsif result == true
           @stats[:updated] += 1
           @logger.info "✅ Updated HubSpot job #{existing_hubspot_id}"
           write_report_row(simpro_job_id, job_data[:job_name], 'updated', existing_hubspot_id)
@@ -375,20 +391,23 @@ class JobsSync
   def update_hubspot_job(hubspot_id, job_data)
     properties = build_hubspot_properties(job_data)
     
-    response = with_retry do
-      HTTParty.patch(
-        "https://api.hubapi.com/crm/v3/objects/p_jobs/#{hubspot_id}",
-        body: { properties: properties }.to_json,
-        headers: {
-          'Content-Type' => 'application/json',
-          'Authorization' => "Bearer #{@hubspot_token}"
-        },
-        timeout: 30
-      )
-    end
+    # Don't use with_retry for updates - we want to handle 404s immediately
+    response = HTTParty.patch(
+      "https://api.hubapi.com/crm/v3/objects/p_jobs/#{hubspot_id}",
+      body: { properties: properties }.to_json,
+      headers: {
+        'Content-Type' => 'application/json',
+        'Authorization' => "Bearer #{@hubspot_token}"
+      },
+      timeout: 30
+    )
     
     if response.success?
       true
+    elsif response.code == 404
+      # Job not found (deleted from HubSpot)
+      @logger.warn "Job #{hubspot_id} not found: #{response.code} - #{response.body}"
+      :not_found
     else
       @logger.error "Failed to update job #{hubspot_id}: #{response.code} - #{response.body}"
       false
