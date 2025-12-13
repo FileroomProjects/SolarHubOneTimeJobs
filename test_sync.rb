@@ -12,15 +12,15 @@ rescue LoadError
 end
 
 class TestJobsSync < JobsSync
-  def run_test
+  def run_test(max_jobs = 1)
     puts "=" * 80
-    puts "Testing Jobs Sync (Single Job)"
+    puts "Testing Jobs Sync (#{max_jobs} Job#{max_jobs > 1 ? 's' : ''})"
     puts "=" * 80
     puts ""
     
     # Test connection to Simpro
     puts "1. Testing Simpro connection..."
-    jobs = fetch_test_job_from_simpro
+    jobs = fetch_test_job_from_simpro(max_jobs)
     
     if jobs.nil? || jobs.empty?
       puts "❌ Failed to fetch jobs from Simpro"
@@ -60,13 +60,13 @@ class TestJobsSync < JobsSync
   
   private
   
-  def fetch_test_job_from_simpro
+  def fetch_test_job_from_simpro(max_jobs = 1)
     rate_limit_simpro
     
     response = with_retry do
       HTTParty.get(
         "#{@simpro_url}/jobs/",
-        query: { page: 0, pageSize: 1 },
+        query: { page: 0, pageSize: max_jobs },
         headers: {
           'Content-Type' => 'application/json',
           'Authorization' => "Bearer #{@simpro_key}"
@@ -81,7 +81,11 @@ end
 
 # Run the test
 if __FILE__ == $0
+  # Read MAX_JOBS from environment or default to 1
+  max_jobs = (ENV['MAX_JOBS'] || '1').to_i
+  max_jobs = 1 if max_jobs < 1 # Ensure at least 1 job
+  
   test_sync = TestJobsSync.new
-  test_sync.run_test
+  test_sync.run_test(max_jobs)
 end
 
