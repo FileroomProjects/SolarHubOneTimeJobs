@@ -240,9 +240,20 @@ class JobsSync
     data[:job_status] = job_response["Status"]["Name"] rescue nil
     data[:simpro_job_id] = job_response["ID"] rescue nil
     
-    # Ensure job name has a value (HubSpot requires it)
-    if !present?(data[:job_name])
-      data[:job_name] = "Job #{data[:simpro_job_id]}"
+    # Extract site name early (needed for job name)
+    data[:site] = job_response["Site"]["Name"] rescue nil
+    data[:site_id] = job_response["Site"]["ID"] rescue nil
+    
+    # Create job name in format: [Job No.] - Site Name
+    # Use site name if available, otherwise use original name or fallback
+    if present?(data[:site])
+      data[:job_name] = "[#{data[:simpro_job_id]}] - #{data[:site]}"
+    elsif present?(data[:job_name])
+      # Keep original name if it exists and no site
+      data[:job_name] = "[#{data[:simpro_job_id]}] - #{data[:job_name]}"
+    else
+      # Fallback if both are missing
+      data[:job_name] = "[#{data[:simpro_job_id]}] - Unnamed Site"
     end
     
     # Map status to HubSpot pipeline stage
@@ -284,8 +295,7 @@ class JobsSync
     data[:simpro_company_id] = job_response["Customer"]["ID"] rescue nil
     data[:simpro_company_name] = job_response["Customer"]["CompanyName"] rescue nil
     data[:simpro_customer_contract_id] = job_response["CustomerContract"]["ID"] rescue nil
-    data[:site] = job_response["Site"]["Name"] rescue nil
-    data[:site_id] = job_response["Site"]["ID"] rescue nil
+    # Note: site and site_id already extracted above for job name generation
     
     # Category 4: Financial Information
     data[:total_price_ex_tax] = job_response["Total"]["ExTax"] rescue nil
